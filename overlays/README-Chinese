@@ -1,0 +1,2566 @@
+介绍
+============
+
+该目录包含设备树覆盖。设备树使之成为可能
+以单个内核支持许多硬件配置，而没有
+需要显式加载内核模块或将其列入黑名单。请注意，这不是
+“纯”设备树配置（cf MACH_BCM2835）-一些板载设备
+仍然由主板支持代码配置，但目的是
+最终达到目标。
+
+在Raspberry Pi上，设备树的使用由/boot/config.txt控制。通过
+默认情况下，Raspberry Pi内核在启用设备树的情况下启动。您可以
+通过添加以下命令，完全禁用DT使用（目前）：
+
+    device_tree =
+
+到您的config.txt文件，这将导致您的Pi恢复到旧的方式
+重新启动后做事。
+
+在/ boot中，您将找到每个基本平台的.dtb。这描述了
+Raspberry Pi板上的硬件。加载程序（start.elf及其
+兄弟姐妹）按名称选择适用于平台的.dtb文件，并读取
+它进入内存。此时，所有可选接口（i2c，i2s，spi）
+已禁用，但可以使用设备树参数启用它们：
+
+    dtparam = i2c = on，i2s = on，spi = on
+
+但是，在许多用例中这不是必需的，因为加载
+需要这些接口之一的叠加层将使其启用
+自动启用，建议仅在以下情况下启用接口：
+需要。
+
+使用设备树覆盖图配置其他可选硬件
+（见下文）。
+
+GPIO编号使用硬件引脚编号方案（也称为BCM方案）和
+而不是物理引脚号。
+
+raspi配置
+============
+
+raspi-config实用程序的“高级选项”部分可以启用和禁用
+使用设备树，以及切换I2C和SPI接口。请注意
+可以同时启用接口和将驱动程序列入黑名单（如果有的话）
+您应该推迟加载的原因。
+
+模组
+=======
+
+除了描述硬件，设备树还提供了足够的信息
+从而可以找到合适的驱动程序模块并进行加载
+不需要的模块不会被加载。结果，应该有可能
+从/ etc / modules中删除行，然后/etc/modprobe.d/raspi-blacklist.conf可以
+将其内容删除（或注释掉）。
+
+使用叠加层
+==============
+
+使用“ dtoverlay” config.txt设置加载叠加。举个例子，
+考虑I2C实时时钟驱动程序。在DT之前的世界中，这些将被加载
+通过将包含设备标识符和I2C地址的魔术字符串写入
+/ sys / class / i2c-adapter中的一个特殊文件，该文件首先为
+I2C接口和RTC设备-如下所示：
+
+    modprobe i2c-bcm2835
+    modprobe rtc-ds1307
+    回声ds1307 0x68> / sys / class / i2c-adapter / i2c-1 / new_device
+
+启用DT后，这将成为config.txt中的一行：
+
+    dtoverlay = i2c-rtc，ds1307
+
+这将导致文件/boot/overlays/i2c-rtc.dtbo加载并出现“节点”
+描述要添加到Pi的设备树中的DS1307 I2C设备。通过
+默认情况下，它使用地址0x68，但是可以使用附加的DT对其进行修改
+参数：
+
+    dtoverlay = i2c-rtc，ds1307，addr = 0x68
+
+参数通常具有默认值，尽管某些参数是
+强制性的。有关参数的说明，请参见下面的叠加列表。
+及其默认值。
+
+叠加层和参数参考
+==================================
+
+注意：编辑此文件时，请保留缩进级别以使其正确
+很容易以编程方式解析。没有硬标签。
+
+
+名称：<基本DTB>
+信息：配置基本的Raspberry Pi硬件
+加载：<自动加载>
+参数：
+        音频设置为“ on”以启用板载ALSA音频
+                                界面（默认为“关闭”）
+
+        axiperf设置为“ on”以启用AXI总线性能
+                                显示器。
+                                参见/ sys / kernel / debug / raspberrypi_axi_monitor
+                                为了结果。
+
+        eee为以下产品启用节能以太网支持
+                                兼容设备（默认为“ on”）。也可以看看
+                                “ tx_lpi_timer”。
+
+        eth_downshift_after设置自动协商失败的次数
+                                之后将禁用1000Mbps模式。
+                                合法值为2、3、4、5和0，其中
+                                0表示永不降档（默认值为2）。
+
+        eth_led0设置LED0的模式（通常为橙色）（默认
+                                “ 1”）。合法值为：
+                                0 =链接/活动1 = link1000 /活动
+                                2 = link100 /活动3 = link10 /活动
+                                4 = link100 / 1000 /活动5 = link10 / 1000 /活动
+                                6 =链接10/100 /活动14 =关闭15 =开启
+
+        eth_led1设置LED1的模式（通常为绿色）（默认
+                                “ 6”）。有关合法值，请参见eth_led0。
+
+        eth_max_speed设置允许链接的最大速度
+                                进行谈判。合法值为10、100和
+                                1000（默认为1000）。
+
+        i2c_arm设置为“ on”以启用ARM的i2c接口
+                                （默认为“关闭”）
+
+        i2c_vc设置为“ on”以启用i2c接口
+                                通常为VideoCore处理器保留
+                                （默认为“关闭”）
+
+        i2c i2c_arm的别名
+
+        i2c_arm_baudrate设置ARM i2c接口的波特率
+                                （默认为“ 100000”）
+
+        i2c_vc_baudrate设置VideoCore i2c接口的波特率
+                                （默认为“ 100000”）
+
+        i2c_baudrate i2c_arm_baudrate的别名
+
+        i2s设置为“ on”以启用i2s界面
+                                （默认为“关闭”）
+
+        spi设置为“ on”以启用spi接口
+                                （默认为“关闭”）
+
+        random设置为“ on”以启用硬件随机
+                                数字生成器（默认为“开”）
+
+        sd_overclock MMC框架时使用的时钟（以MHz为单位）
+                                请求50MHz
+
+        sd_force_pio禁用对SD驱动程序的DMA支持（默认关闭）
+
+        sd_pio_limit在其上使用DMA的块数
+                                SD卡（默认1）
+
+        sd_debug启用SD驱动程序的调试输出（默认关闭）
+
+        sdio_overclock MMC框架时要使用的时钟（以MHz为单位）
+                                为SDIO / WiFi接口请求50MHz。
+
+        tx_lpi_timer设置空闲之间的延迟（以微秒为单位）
+                                并进入低功耗状态（默认为600）。
+                                需要启用EEE-请参阅“ eee”。
+
+        uart0设置为“关”以禁用uart0（默认为“开”）
+
+        uart1设置为“ on”或“ off”以启用或禁用uart1
+                                （默认值有所不同）
+
+        看门狗设置为“ on”以启用硬件看门狗
+                                （默认为“关闭”）
+
+        act_led_trigger选择LED跟踪的活动。
+                                使用“心跳”作为良好的负载指示器。
+                                （默认为“ mmc”）
+
+        act_led_activelow设置为“开”以反转LED的感觉
+                                （默认为“关闭”）
+                                NB对于Pi 3B，3B +，3A +和4B，请使用act-led
+                                覆盖。
+
+        act_led_gpio设置要用于活动LED的GPIO
+                                （以防您要将其连接到外部
+                                设备）
+                                （在非Plus板上默认为“ 16”，在非Plus板上默认为“ 47”
+                                加号或Pi 2）
+                                NB对于Pi 3B，3B +，3A +和4B，请使用act-led
+                                覆盖。
+
+        pwr_led_trigger
+        pwr_led_activelow
+        pwr_led_gpio
+                                至于act_led_ *，但使用PWR LED。
+                                在A / B型板上不可用。
+
+        注意：建议仅启用所需的那些接口。
+        使所有接口保持启用状态可能会导致不良行为（i2c_vc
+        干扰Pi Camera，I2S和SPI占用GPIO引脚等）
+        另请注意，i2c，i2c_arm和i2c_vc是物理设备的别名
+        接口i2c0和i2c1。仍然可以使用数字变量
+        但已弃用，因为板之间的ARM / VC分配不同
+        修订。相同的主板特定映射适用于i2c_baudrate，
+        以及其他i2c波特率参数。
+
+
+名称：行为主导
+信息：Pi 3B，3B +，3A +和4B使用GPIO扩展器来驱动LED，
+        只能从VPU访问。为此有一个特殊的驱动程序
+        单独的DT节点，不幸的结果是破坏了
+        act_led_gpio和act_led_activelow dtparams。
+        此覆盖将GPIO控制器改回标准控制器，然后
+        恢复dtparams。
+负载：dtoverlay = act-led，<param> = <val>
+参数：activelow设置为“ on”以反转LED的感觉
+                                （默认为“关闭”）
+
+        gpio设置要用于活动LED的GPIO
+                                （以防您要将其连接到外部
+                                设备）
+                                需要
+
+
+名称：adau1977-adc
+信息：用于在I2C上激活ADAU1977 ADC编解码器以进行控制的叠加
+        和I2S用于数据。
+负载：dtoverlay = adau1977-adc
+参数：<无>
+
+
+名称：adau7002-简单
+信息：用于激活ADAU7002立体声PDM到I2S转换器的覆盖层。
+加载：dtoverlay = adau7002-simple，<param> = <val>
+参数：card-name覆盖默认的“ adau7002”卡名。
+
+
+名称：ads1015
+信息：用于通过I2C激活Texas Instruments ADS1015 ADC的叠加
+负载：dtoverlay = ads1015，<param> = <val>
+参数：设备的I2C总线地址。根据如何设置
+                                地址引脚已接线。（默认= 0x48假定为addr
+                                被拉到GND）
+        cha_enable启用虚拟通道 （默认= true）
+        cha_cfg设置虚拟通道a的配置。
+                                （默认= 4将此通道配置为
+                                相对于GND的A0处的电压）
+        cha_datarate设置此通道的数据速率（样本/秒）。
+                                （默认= 4设置1600 sps）
+        cha_gain设置可编程增益的增益
+                                此通道的放大器。（默认= 2设置
+                                通道的满量程为2.048伏）
+
+        可以为每个启用的通道设置通道（ch）参数。
+        最多可以启用4个通道（字母a至d）。
+        有关更多信息，请参见以下器件的数据手册：
+        http://www.ti.com/lit/ds/symlink/ads1015.pdf
+
+
+名称：ads1115
+信息：德州仪器（TI）ADS1115 ADC
+加载：dtoverlay = ads1115，<param> [= <val>]
+参数：设备的I2C总线地址。根据如何设置
+                                地址引脚已接线。（默认= 0x48假定为addr
+                                被拉到GND）
+        cha_enable启用虚拟通道
+        cha_cfg设置虚拟通道a的配置。
+                                （默认= 4将此通道配置为
+                                相对于GND的A0处的电压）
+        cha_datarate设置此通道的数据速率（样本/秒）。
+                                （默认= 7设置860 sps）
+        cha_gain设置可编程增益的增益
+                                此通道的放大器。（默认设置为1
+                                通道的满量程为4.096伏）
+
+        可以为每个启用的通道设置通道参数。
+        最多可以启用4个通道（字母a至d）。
+        有关更多信息，请参见以下器件的数据手册：
+        http://www.ti.com/lit/ds/symlink/ads1115.pdf
+
+
+名称：ads7846
+信息：ADS7846触摸控制器
+负载：dtoverlay = ads7846，<param> = <val>
+参数：cs SPI总线片选（默认1）
+        速度SPI总线速度（默认2MHz，最大3.25MHz）
+        用于PENIRQ的penirq GPIO。需要
+        penirq_pull设置GPIO拉（默认0 =无，2 =上拉）
+        swapxy交换x和y轴
+        xmin X轴上的最小值（默认为0）
+        ymin Y轴上的最小值（默认为0）
+        xmax X轴上的最大值（默认4095）
+        ymax Y轴上的最大值（默认4095）
+        pmin报告的最小压力值（默认为0）
+        pmax报告的最大压力值（默认值65535）
+        xohms触摸屏灵敏度（X板电阻）
+                                （默认为400）
+
+        需要penirq，通常还必须设置xohms（60-100）。
+        除此之外，pmax（255）和swapxy也很常见。
+        其余的校准可以使用xinput-calibrator完成。
+        参见：github.com/notro/fbtft/wiki/FBTFT-on-Raspian
+        设备树绑定文档：
+        www.kernel.org/doc/Documentation/devicetree/bindings/input/ads7846.txt
+
+
+名称：adv7282m
+信息：Analog Devices ADV7282M模拟视频到CSI2桥。
+        使用Unicam1，这是大多数Pi上的标准相机连接器
+        变体。
+负载：dtoverlay = adv7282m，<param> = <val>
+参数：i2c_pins_0_1 I2C使用引脚0-1，而不是44＆45。
+                                在计算模块上很有用。
+        i2c_pins_28_29将引脚28＆29用于I2C，而不是44＆45。
+                                对于Pi B +，2、0和0W，这是必需的。
+        addr覆盖I2C地址（默认0x21）
+
+
+名称：adv728x-m
+信息：Analog Devices ADV728 [0 | 1 | 2] -M模拟视频到CSI2桥。
+        这是adv7282m的包装，默认为ADV7282M。
+负载：dtoverlay = adv728x-m，<参数> = <值>
+参数：i2c_pins_0_1 I2C使用引脚0-1，而不是44＆45。
+                                在计算模块上很有用。
+        i2c_pins_28_29将引脚28＆29用于I2C，而不是44＆45。
+                                对于Pi B +，2、0和0W，这是必需的。
+        addr覆盖I2C地址（默认0x21）
+        adv7280m选择ADV7280-M。
+        adv7281m选择ADV7281-M。
+        adv7281ma选择ADV7281-MA。
+
+
+名称：akkordion-iqdacplus
+信息：配置Digital Dreamtime Akkordion音乐播放器（基于
+        OEM IQAudIO DAC +或DAC零模块）。
+负载：dtoverlay = akkordion-iqdacplus，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                dtoverlay = akkordion-iqdacplus，24db_digital_gain
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+
+
+名称：allo-boss-dac-pcm512x-audio
+信息：配置Allo Boss DAC声卡。
+负载：dtoverlay = allo-boss-dac-pcm512x-audio，<param>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = allo-boss-dac-pcm512x-audio，
+                                24db_digital_gain“
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        使用Pi a将slave Force Boss DAC转换为slave模式
+                                主机位时钟和帧时钟。启用
+                                使用“ dtoverlay = allo-boss-dac-pcm512x-audio，
+                                奴隶”
+
+
+名称：异源消化
+信息：配置Allo Digione声卡
+负荷：dtoverlay = allo-digione
+参数：<无>
+
+
+名称：allo-katana-dac-audio
+信息：配置Allo Katana DAC音频卡
+负载：dtoverlay = allo-katana-dac-audio
+参数：<无>
+
+
+名称：allo-piano-dac-pcm512x-audio
+信息：配置Allo钢琴DAC（2.0 / 2.1）声卡。
+        （注意：此初始支持仅支持2.0声道音频！即立体声。
+        当前不支持Piano 2.1上的低音炮输出！）
+负载：dtoverlay = allo-piano-dac-pcm512x-audio，<param>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+
+
+名称：allo-piano-dac-plus-pcm512x-audio
+信息：配置Allo Piano DAC（2.1）声卡。
+负载：dtoverlay = allo-piano-dac-plus-pcm512x-audio，<param>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        glb_mclk此选项仅适用于Kali板。如果启用，
+                                使用Kali的MCLK并禁用PLL
+                                更好的语音质量。（默认关闭）
+
+
+名称：applepi-dac
+信息：配置Orchard Audio ApplePi-DAC声卡
+负载：dtoverlay = applepi-dac
+参数：<无>
+
+
+名称：at86rf233
+信息：配置Atmel AT86RF233 802.15.4低功耗WPAN收发器，
+        连接到spi0.0
+负载：dtoverlay = at86rf233，<param> = <val>
+参数：用于INT的中断GPIO（默认23）
+        用于复位的reset GPIO（默认24）
+        用于睡眠的sleep GPIO（默认25）
+        速度SPI总线速度（Hz）（默认3000000）
+        微调内部电容
+                                数组（0 = + 0pF，15 = + 4.5pF，默认15）
+
+
+名称：audioinjector-addons
+信息：配置声卡上的audioinjector.net音频添加
+负载：dtoverlay = audioinjector-addons，<param> = <val>
+参数：不间断时钟即使在流中也保持时钟运行
+                                暂停或停止（默认关闭）
+
+
+名称：超音波喷射器
+信息：配置audioinjector.net超声卡
+负载：dtoverlay = audioinjector-ultra
+参数：<无>
+
+
+名称：audioinjector-wm8731-audio
+信息：配置声卡上的audioinjector.net音频添加
+负载：dtoverlay = audioinjector-wm8731-audio
+参数：<无>
+
+
+名称：audiosense-pi
+信息：配置声卡上的audiosense-pi添加
+        有关更多信息，请参阅
+        https://gitlab.com/kakar0t/audiosense-pi
+负载：dtoverlay = audiosense-pi
+参数：<无>
+
+
+名称：audremap
+信息：将PWM声音输出切换到40针接头连接器上的GPIO
+负载：dtoverlay = audremap，<param> = <val>
+参数：swap_lr反转通道分配，这也会
+                                交换音频插孔输出（默认关闭）
+        enable_jack请勿关闭音频插孔输出
+                                （默认关闭）
+        pins_12_13选择GPIO 12和13（默认）
+        pins_18_19选择GPIO 18和19
+
+
+名称：Balena-fin
+信息：覆盖层，可在设备上启用WiFi，蓝牙和GPIO扩展器
+        Raspberry Pi计算模块3/3 + Lite的balenaFin载板。
+负载：dtoverlay = balena-fin
+参数：<无>
+
+
+名称：bmp085_i2c-sensor
+信息：现在不建议使用此叠加层-请参阅i2c-sensor
+负载：<不推荐使用>
+
+
+名称：dht11
+信息：DHT11 / DHT21 / DHT22湿度/温度传感器的覆盖
+        有时还会用零件号AM230x找到。
+负载：dtoverlay = dht11，<param> = <val>
+参数：gpiopin GPIO连接到传感器的DATA输出。
+                                （默认为4）
+
+
+名称：dionaudio-loco
+信息：配置Dion Audio LOCO DAC-AMP
+负载：dtoverlay = dionaudio-loco
+参数：<无>
+
+
+名称：dionaudio-loco-v2
+信息：配置Dion Audio LOCO-V2 DAC-AMP
+负载：dtoverlay = dionaudio-loco-v2，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = hifiberry-dacplus，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24dB_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+
+
+名称：disable-bt
+信息：在Pi 3B，3B +，3A +，4B和零W上禁用板载蓝牙，恢复
+        通过GPIO 14和15的UART0 / ttyAMA0
+        注意要禁用初始化调制解调器的systemd服务，以便
+        不使用UART，请使用sudo systemctl disable hciuart。
+负载：dtoverlay = disable-bt
+参数：<无>
+
+
+名称：disable-wifi
+信息：在Pi 3B，3B +，3A +，4B和Zero W上禁用板载WiFi。
+负载：dtoverlay = disable-wifi
+参数：<无>
+
+
+名称：dpi18
+信息：通用18位DPI显示的覆盖
+        这使用GPIO 0-21（因此不使用I2C，uart等），并激活输出
+        内核启动后的2-3秒。
+负载：dtoverlay = dpi18
+参数：<无>
+
+
+名称：dpi24
+信息：通用24位DPI显示的覆盖图
+        这使用GPIO 0-27（因此不使用I2C，uart等），并激活输出
+        内核启动后的2-3秒。
+负载：dtoverlay = dpi24
+参数：<无>
+
+
+名称：平局
+信息：配置NW数字广播DRAWS帽子
+
+        该评估板包括一个ADC，可测量各种评估板的值，以及
+        在扩展头上提供了两个模拟用户输入。ADC
+        可以针对各种采样率和增益值进行配置以进行调整
+        输入范围。下表描述了这两个参数。
+
+        ADC增益值：
+            0 = +/- 6.144伏
+            1 = +/- 4.096伏
+            2 = +/- 2.048V
+            3 = +/- 1.024伏
+            4 = +/- 0.512伏
+            5 = +/- 0.256V
+            6 = +/- 0.256V
+            7 = +/- 0.256V
+
+        ADC数据速率值：
+            0 = 128sps
+            1 = 250sps
+            2 = 490每秒
+            3 = 920 psps
+            4 = 1600sps（默认）
+            5 = 2400sps
+            6 = 3300sps
+            7 = 3300sps
+负载：dtoverlay = draws，<param> = <val>
+参数：draws_adc_ch4_gain设置ADC的满量程分辨率
+                                输入电压传感器（默认1）
+
+        draws_adc_ch4_datarate设置ADC输入电压的数据速率
+                                传感器
+
+        draws_adc_ch5_gain设置ADC的满量程分辨率
+                                5V轨电压传感器（默认1）
+
+        draws_adc_ch5_datarate设置ADC 4V轨电压的数据速率
+                                传感器
+
+        draws_adc_ch6_gain设置ADC的满量程分辨率
+                                AIN2输入（默认2）
+
+        draws_adc_ch6_datarate设置ADC AIN2输入的数据速率
+
+        draws_adc_ch7_gain设置ADC的满量程分辨率
+                                AIN3输入（默认2）
+
+        draws_adc_ch7_datarate设置ADC AIN3输入的数据速率
+
+        alsaname ALSA音频设备的名称（默认为“ draws”）
+
+
+名称：dwc-otg
+信息：选择具有fiq支持的dwc_otg USB控制器驱动程序。这个
+        是除Pi Zero（默认为dwc2）以外的所有默认设置。
+负载：dtoverlay = dwc-otg
+参数：<无>
+
+
+名称：dwc2
+信息：选择dwc2 USB控制器驱动程序
+负载：dtoverlay = dwc2，<param> = <val>
+参数：dr_mode双角色模式：“主机”，“外围设备”或“ otg”
+
+        g-rx-fifo-size小工具模式下rx fifo的大小
+
+        g-np-tx-fifo-size小工具中非周期性tx fifo大小的大小
+                                模式
+
+
+[ds1307-rtc覆盖已被删除。请参阅i2c-rtc。]
+
+
+名称：enc28j60
+信息：SPI0上的Microchip ENC28J60以太网控制器的覆盖
+加载：dtoverlay = enc28j60，<param> = <val>
+参数：int_pin用于INT的GPIO（默认值为25）
+
+        速度SPI总线速度（默认值12000000）
+
+
+名称：enc28j60-spi2
+信息：SPI2上的Microchip ENC28J60以太网控制器的覆盖
+加载：dtoverlay = enc28j60-spi2，<param> = <val>
+参数：int_pin用于INT的GPIO（默认值为39）
+
+        速度SPI总线速度（默认值12000000）
+
+
+名称：exc3000
+信息：使用以下命令启用I2C连接的EETI EXC3000多点触摸控制器
+        GPIO 4（GPIO头上的引脚7）用于中断。
+负载：dtoverlay = exc3000，<param> = <val>
+参数：用于中断的中断GPIO（默认4）
+        尺寸x触摸屏尺寸x（默认4096）
+        触摸屏尺寸y（默认4096）
+        invx触摸屏反转x轴
+        惯性触摸屏y轴倒置
+        swapxy触摸屏交换xy轴
+
+
+名称：fe-pi-audio
+信息：配置Fe-Pi音频声卡
+负载：dtoverlay = fe-pi-audio
+参数：<无>
+
+
+名称：古力士
+信息：使用以下命令启用I2C连接的Goodix gt9271多点触摸控制器
+        GPIO 4和17（GPIO头上的引脚7和11）用于中断和复位。
+加载：dtoverlay = goodix，<param> = <val>
+参数：用于中断的中断GPIO（默认4）
+        用于重置的reset GPIO（默认为17）
+
+
+名称：googlevoicehat-soundcard
+信息：配置Google voiceHAT声卡
+加载：dtoverlay = googlevoicehat-soundcard
+参数：<无>
+
+
+名称：gpio-fan
+信息：配置GPIO引脚以控制冷却风扇。
+负载：dtoverlay = gpio-fan，<param> = <val>
+参数：gpiopin GPIO用于控制风扇（默认为12）
+        temp风扇打开的温度，in
+                                millicelcius（默认55000）
+
+
+名称：gpio-ir
+信息：使用GPIO引脚作为rc核心样式的红外接收器输入。rc核心-
+        基于gpio_ir_recv的驱动程序将接收到的密钥直接映射到
+        / dev / input / event *设备，所有解码均由内核完成-LIRC为
+        不需要！密钥映射和其他解码参数可以是
+        通过“ ir-keytable”工具进行配置。
+负载：dtoverlay = gpio-ir，<param> = <val>
+参数：gpio_pin输入引脚号。默认值为18。
+
+        gpio_pull所需的上拉/下拉状态（关闭，关闭，向上）
+                                默认为“打开”。
+
+        rc-map-name默认的rc键映射（也可以通过更改
+                                ir-keytable），默认为“ rc-rc6-mce”
+
+
+名称：gpio-ir-tx
+信息：使用GPIO引脚作为位撞击式红外发射器输出。
+        这是“ pwm-ir-tx”的替代方法。gpio-ir-tx不需要
+        PWM，因此可以与板载模拟音频一起使用。
+负载：dtoverlay = gpio-ir-tx，<param> = <val>
+参数：gpio_pin输出GPIO（默认18）
+
+        反转“ 1” =反转输出（使其为低电平有效）。
+                                默认值为“ 0”（高电平有效）。
+
+
+名称：gpio-key
+信息：这是用于使用以下命令激活GPIO按键的通用叠加层
+        gpio-keys库和此dtoverlay。可以使用多个键
+        使用对覆盖图的多次调用进行设置
+        其他按钮或操纵杆。您可以看到可用的键码
+        在https://github.com/torvalds/linux/blob/v4.12/include/uapi/
+        linux / input-event-codes.h＃L64
+负载：dtoverlay = gpio-key，<param> = <val>
+参数：gpio GPIO引脚触发（默认值为3）
+        active_low当它为1（低电平有效）时，下降
+                                边缘生成按下事件，并且
+                                上升沿会产生按键上升事件。
+                                当它是0（高电平有效）时，这是
+                                逆转。默认值为1（低电平有效）
+        gpio_pull所需的上拉/下拉状态（关闭，关闭，向上）
+                                默认为“打开”。注意默认引脚
+                                （GPIO3）具有外部上拉
+        标签为钥匙设置标签
+        键码设置按钮的键码
+
+
+名称：gpio-no-bank0-irq
+信息：使用此覆盖可为存储体0（0-27）中的GPIO禁用GPIO中断，
+        这对于UIO驱动程序很有用。
+        注意：使用该覆盖图会在引导过程中触发内核警告。
+        这可以安全地忽略-系统应该按预期工作。
+负载：dtoverlay = gpio-no-bank0-irq
+参数：<无>
+
+
+名称：gpio-no-irq
+信息：使用此覆盖层可禁用所有GPIO中断，这可能会很有用
+        用于用户空间GPIO边缘检测系统。
+负载：dtoverlay = gpio-no-irq
+参数：<无>
+
+
+名称：gpio-poweroff
+信息：在断电时将GPIO驱动为高电平或低电平（包括停止）。启用这个
+        覆盖将阻止通过将GPIO3驱动为低电平来启动的能力。
+负载：dtoverlay = gpio-poweroff，<param> = <val>
+参数：用于信令的gpiopin GPIO（默认值为26）
+
+        active_low设置电源控制设备是否需要
+                                高->低过渡触发掉电。
+                                请注意，这需要获得
+                                自定义dt-blob.bin以防止掉电
+                                在启动过程中，然后重新启动
+                                也将导致该引脚变低。
+        输入设置是否将gpio引脚配置为
+                                输入。
+        export设置为将配置的引脚导出到sysfs
+
+
+名称：gpio-shutdown
+信息：当GPIO引脚发生变化时启动关闭。给定的GPIO引脚
+        被配置为生成KEY_POWER事件的输入键。
+        此事件由systemd-logind通过启动一个
+        关掉。早于225的系统版本需要udev规则
+        启用监听输入设备：
+
+                ACTION！=“ REMOVE”，SUBSYSTEM ==“ input”，KERNEL ==“ event *”，\
+                        SUBSYSTEMS ==“平台”，驱动程序==“ gpio-keys”，\
+                        ATTRS {keys} ==“ 116”，TAG + =“电源开关”
+
+        此覆盖仅处理关机。关机后，系统
+        可以通过将GPIO3驱动为低电平再次上电。默认值
+        配置使用带上拉的GPIO3，因此如果您连接了
+        GPIO3和GND之间的按钮（40引脚接头连接器上的引脚5和6），
+        您将获得关机和开机按钮。
+负载：dtoverlay = gpio-shutdown，<param> = <val>
+参数：gpio_pin GPIO引脚触发打开（默认3）
+
+        active_low当它为1（低电平有效）时，下降
+                                边缘生成按下事件，并且
+                                上升沿会产生按键上升事件。
+                                当它是0（高电平有效）时，这是
+                                逆转。默认值为1（低电平有效）。
+
+        gpio_pull所需的上拉/下拉状态（关闭，关闭，向上）
+                                默认为“打开”。
+
+                                请注意，默认引脚（GPIO3）具有一个
+                                外部上拉。
+
+
+名称：hd44780-lcd
+信息：配置与HD44780兼容的LCD显示器。使用4 gpio引脚
+        数据，2个用于使能和寄存器选择的gpio引脚和1个可选引脚
+        用于启用/禁用背光显示。
+负载：dtoverlay = hd44780-lcd，<param> = <val>
+参数：pin_d4数据引脚D4的GPIO引脚（默认6）
+
+        pin_d5数据引脚D5的GPIO引脚（默认13）
+
+        pin_d6数据引脚D6的GPIO引脚（默认为19）
+
+        pin_d7数据引脚D7的GPIO引脚（默认26）
+
+        pin_en GPIO引脚，用于“启用”（默认为21）
+
+        pin_rs“寄存器选择”的GPIO引脚（默认为20）
+
+        pin_bl可选引脚，用于启用/禁用
+                                显示背光。（默认禁用）
+
+        display_height显示器的高度（以字符为单位）
+
+        display_width显示的宽度（以字符为单位）
+
+
+名称：hifiberry-amp
+信息：配置HifiBerry Amp和Amp +声卡
+负载：dtoverlay = hifiberry-amp
+参数：<无>
+
+
+名称：hifiberry-dac
+信息：配置HifiBerry DAC声卡
+负荷：dtoverlay = hifiberry-dac
+参数：<无>
+
+
+名称：hifiberry-dacplus
+信息：配置HifiBerry DAC +声卡
+负载：dtoverlay = hifiberry-dacplus，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = hifiberry-dacplus，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24dB_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        将Pi用作从机，将Force DAC + Pro置于从机模式
+                                主机位时钟和帧时钟。
+
+
+名称：hifiberry-dacplusadc
+信息：配置HifiBerry DAC + ADC音频卡
+负载：dtoverlay = hifiberry-dacplusadc，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = hifiberry-dacplus，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24dB_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        将Pi用作从机，将Force DAC + Pro置于从机模式
+                                主机位时钟和帧时钟。
+
+
+名称：hifiberry-dacplusadcpro
+信息：配置HifiBerry DAC + ADC PRO声卡
+负载：dtoverlay = hifiberry-dacplusadcpro，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = hifiberry-dacplusadcpro，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24dB_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        将Pi用作从机，将Force DAC + ADC Pro置于从机模式
+                                主机位时钟和帧时钟。
+
+
+名称：hifiberry-dacplusdsp
+信息：配置HifiBerry DAC + DSP音频卡
+负荷：dtoverlay = hifiberry-dacplusdsp
+参数：<无>
+
+
+姓名：hifiberry-digi
+信息：配置HifiBerry Digi和Digi +声卡
+负荷：dtoverlay = hifiberry-digi
+参数：<无>
+
+
+名称：hifiberry-digi-pro
+信息：配置HifiBerry Digi + Pro声卡
+负载：dtoverlay = hifiberry-digi-pro
+参数：<无>
+
+
+名称：hy28a
+信息：昊宇电子HY28A-2.8英寸TFT LCD显示模块
+        默认值与Texy的显示护罩匹配
+负载：dtoverlay = hy28a，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+        resetgpio GPIO用于重置控制器
+
+        ledgpio GPIO用于控制背光
+
+
+名称：hy28b
+信息：浩宇电子HY28B-2.8英寸TFT LCD显示模块
+        默认值与Texy的显示护罩匹配
+负载：dtoverlay = hy28b，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+        resetgpio GPIO用于重置控制器
+
+        ledgpio GPIO用于控制背光
+
+
+名称：hy28b-2017
+信息：HY28B 2017版-浩宇电子2.8英寸TFT LCD显示模块
+        默认值与Texy的显示护罩匹配
+负载：dtoverlay = hy28b-2017，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+        resetgpio GPIO用于重置控制器
+
+        ledgpio GPIO用于控制背光
+
+
+名称：i-sabre-q2m
+信息：配置Audiophonics I-SABRE Q2M DAC
+负载：dtoverlay = i-sabre-q2m
+参数：<无>
+
+
+名称：i2c-bcm2708
+信息：回退到i2c_arm总线的i2c_bcm2708驱动程序。
+负载：dtoverlay = i2c-bcm2708
+参数：<无>
+
+
+名称：i2c-gpio
+信息：在gpio引脚上增加了对软件i2c控制器的支持
+负载：dtoverlay = i2c-gpio，<param> = <val>
+参数：i2c_gpio_sda用于I2C数据的GPIO（默认为“ 23”）
+
+        i2c_gpio_scl用于I2C时钟的GPIO（默认为“ 24”）
+
+        i2c_gpio_delay_us时钟延迟（以微秒为单位）
+                                （默认“ 2” =〜100kHz）
+
+        总线如果需要，设置为唯一的非零值
+                                多个i2c-gpio总线。如果设置，将使用
+                                作为首选总线号（/ dev / i2c- <n>）。如果
+                                未设置，默认值为0，但总线
+                                数字将被动态分配-可能
+                                3。
+
+
+名称：i2c-mux
+信息：在i2c_arm上增加了对许多I2C总线多路复用器的支持
+负载：dtoverlay = i2c-mux，<param> = <val>
+参数：pca9542选择NXP PCA9542器件
+
+        pca9545选择NXP PCA9545器件
+
+        pca9548选择NXP PCA9548器件
+
+        addr更改设备的I2C地址（默认0x70）
+
+
+[i2c-mux-pca9548a覆盖层已删除。请参阅i2c-mux。]
+
+
+名称：i2c-pwm-pca9685a
+信息：在i2c_arm上增加了对NXP PCA9685A I2C PWM控制器的支持
+负载：dtoverlay = i2c-pwm-pca9685a，<param> = <val>
+参数：PCA9685A的地址I2C地址（默认0x40）
+
+
+名称：i2c-rtc
+信息：增加了对许多I2C实时时钟设备的支持
+负载：dtoverlay = i2c-rtc，<param> = <val>
+参数：abx80x选择ABx80x系列之一：
+                                  AB0801，AB0803，AB0804，AB0805，
+                                  AB1801，AB1803，AB1804，AB1805
+
+        ds1307选择DS1307设备
+
+        ds1339选择DS1339设备
+
+        ds3231选择DS3231设备
+
+        m41t62选择M41T62设备
+
+        mcp7940x选择MCP7940x器件
+
+        mcp7941x选择MCP7941x器件
+
+        pcf2127选择PCF2127设备
+
+        pcf2129选择PCF2129设备
+
+        pcf8523选择PCF8523设备
+
+        pcf8563选择PCF8563器件
+
+        rv3028选择Micro Crystal RV3028器件
+
+        addr设置RTC的地址。请注意
+                                设备必须配置为使用指定的
+                                地址。
+
+        le流二极管类型用于trick流充电的二极管类型-“标准”或
+                                “肖特基”（仅ABx80x）
+
+        le流电阻欧姆trick流充电的电阻值（DS1339，
+                                ABx80x，RV3028）
+
+        唤醒源指定可以将RTC用作唤醒
+                                资源
+
+        backup-switchover-mode备用电源开关模式。必须为0
+                                Vdd <VBackup则为off或1（仅RV3028）
+
+
+名称：i2c-rtc-gpio
+信息：增加了对许多I2C实时时钟设备的支持
+        使用软件i2c控制器
+加载：dtoverlay = i2c-rtc-gpio，<param> = <val>
+参数：abx80x选择ABx80x系列之一：
+                                  AB0801，AB0803，AB0804，AB0805，
+                                  AB1801，AB1803，AB1804，AB1805
+
+        ds1307选择DS1307设备
+
+        ds1339选择DS1339设备
+
+        ds3231选择DS3231设备
+
+        m41t62选择M41T62设备
+
+        mcp7940x选择MCP7940x器件
+
+        mcp7941x选择MCP7941x器件
+
+        pcf2127选择PCF2127设备
+
+        pcf2129选择PCF2129设备
+
+        pcf8523选择PCF8523设备
+
+        pcf8563选择PCF8563器件
+
+        rv3028选择Micro Crystal RV3028器件
+
+        addr设置RTC的地址。请注意
+                                设备必须配置为使用指定的
+                                地址。
+
+        le流二极管类型用于trick流充电的二极管类型-“标准”或
+                                “肖特基”（仅ABx80x）
+
+        le流电阻欧姆trick流充电的电阻值（DS1339，
+                                ABx80x，RV3028）
+
+        唤醒源指定可以将RTC用作唤醒
+                                资源
+
+        backup-switchover-mode备用电源开关模式。必须为0
+                                Vdd <VBackup则为off或1（仅RV3028）
+
+        i2c_gpio_sda用于I2C数据的GPIO（默认为“ 23”）
+
+        i2c_gpio_scl用于I2C时钟的GPIO（默认为“ 24”）
+
+        i2c_gpio_delay_us时钟延迟（以微秒为单位）
+                                （默认“ 2” =〜100kHz）
+
+
+名称：i2c传感器
+信息：增加了对许多I2C气压和温度的支持
+        i2c_arm上的传感器
+负载：dtoverlay = i2c-sensor，<param> = <val>
+参数：addr设置BME280，BMP280，DS1621的地址，
+                                HDC100X，LM75，SHT3x或TMP102
+
+        bme280选择博世Sensortronic BME280
+                                有效地址0x76-0x77，默认地址0x76
+
+        bmp085选择博世Sensortronic BMP085
+
+        bmp180选择Bosch Sensortronic BMP180
+
+        bmp280选择Bosch Sensortronic BMP280
+                                有效地址0x76-0x77，默认地址0x76
+
+        ds1621                   选择Dallas Semiconductors DS1621的温度
+                                传感器。有效地址0x48-0x4f，默认0x48
+
+        hdc100x选择德州仪器（TI）HDC100x温度传感器
+                                有效地址0x40-0x43，默认地址0x40
+
+        htu21选择HTU21温湿度传感器
+
+        lm75选择Maxim LM75温度传感器
+                                有效地址0x48-0x4f，默认地址0x4f
+
+        lm75addr已弃用-改用addr参数
+
+        max17040选择Maxim Integrated MAX17040电池
+                                监控
+
+        sht3x选择Sensiron SHT3x温度和
+                                湿度传感器。有效地址0x44-0x45，
+                                默认值0x44
+
+        si7020选择Silicon Labs Si7013 / 20/21湿度/
+                                温度感应器
+
+        tmp102选择德州仪器（TI）TMP102温度传感器
+                                有效地址0x48-0x4b，默认0x48
+
+        tsl4531选择AMS TSL4531数字环境光
+                                传感器
+
+        veml6070选择Vishay VEML6070紫外线
+                                传感器
+
+
+名称：i2c0
+信息：更改i2c0引脚用法。并非所有引脚组合都可在所有引脚上使用
+        平台-计算模块以外的平台只能使用此平台
+        禁用交易合并。
+负载：dtoverlay = i2c0，<param> = <val>
+参数：pin_0_1使用pin 0和1（默认值）
+        pins_28_29使用pins 28和29
+        pins_44_45使用pins 44和45
+        pins_46_47使用pins 46和47
+        合并允许合并交易（默认
+                                “是”）
+
+
+名称：i2c0-bcm2708
+信息：已弃用的i2c0的旧版本，它从中继承了其旧版本
+        参数，只需添加明确的单个引脚说明符即可。
+负载：<不推荐使用>
+参数：sda0_pin SDA0的GPIO引脚（不建议使用-使用pins_ *）
+        scl0_pin SCL0的GPIO引脚（不建议使用-使用pins_ *）
+
+
+名称：i2c1
+信息：更改i2c1引脚用法。并非所有引脚组合都可在所有引脚上使用
+        平台-计算模块以外的平台只能使用此平台
+        禁用交易合并。
+负载：dtoverlay = i2c1，<param> = <val>
+参数：pins_2_3使用pin 2和3（默认值）
+        pins_44_45使用pins 44和45
+        合并允许合并交易（默认
+                                “是”）
+
+
+名称：i2c1-bcm2708
+信息：不推荐使用的i2c1的旧版本，它从中继承了其旧版本
+        参数，只需添加明确的单个引脚说明符即可。
+负载：<不推荐使用>
+参数：sda1_pin SDA1的GPIO引脚（2或44-默认2）
+        scl1_pin SCL1的GPIO引脚（3或45-默认3）
+        pin_func备用引脚功能（4（alt0），6（alt2）-
+                                默认4）
+
+
+名称：i2c3
+信息：启用i2c3总线
+负载：dtoverlay = i2c3，<参数>
+参数：pins_2_3使用GPIO 2和3
+        pins_4_5使用GPIO 4和5（默认）
+        baudrate设置接口的波特率（默认
+                                “ 100000”）
+
+
+名称：i2c4
+信息：启用i2c4总线
+负载：dtoverlay = i2c4，<param>
+参数：pins_6_7使用GPIO 6和7
+        pins_8_9使用GPIO 8和9（默认）
+        baudrate设置接口的波特率（默认
+                                “ 100000”）
+
+
+名称：i2c5
+信息：启用i2c5总线
+负载：dtoverlay = i2c5，<param>
+参数：pins_10_11使用GPIO 10和11
+        pins_12_13使用GPIO 12和13（默认）
+        baudrate设置接口的波特率（默认
+                                “ 100000”）
+
+
+名称：i2c6
+信息：启用i2c6总线
+负载：dtoverlay = i2c6，<param>
+参数：pin_0_1使用GPIO 0和1
+        pin_22_23使用GPIO 22和23（默认）
+        baudrate设置接口的波特率（默认
+                                “ 100000”）
+
+
+名称：i2s-gpio28-31
+信息：将I2S功能块移至GPIO 28至31
+负载：dtoverlay = i2s-gpio28-31
+参数：<无>
+
+
+名称：ilitek251x
+信息：使用以下命令启用I2C连接的Ilitek 251x多点触摸控制器
+        GPIO 4（GPIO头上的引脚7）用于中断。
+负载：dtoverlay = ilitek251x，<param> = <val>
+参数：用于中断的中断GPIO（默认4）
+        sizex触摸屏尺寸x，水平分辨率
+                                触摸屏（以像素为单位）
+        触摸屏尺寸y，垂直分辨率
+                                触摸屏（以像素为单位）
+
+
+名称：imx219
+信息：索尼IMX219摄像头模块。
+        使用Unicam 1，这是大多数Pi上的标准相机连接器
+        变体。
+加载：dtoverlay = imx219，<param> = <val>
+参数：i2c_pins_0_1 I2C使用引脚0-1，而不是44＆45。
+                                在计算模块上很有用。
+
+        i2c_pins_28_29将引脚28＆29用于I2C，而不是44＆45。
+                                对于Pi B +，2、0和0W，这是必需的。
+
+
+名称：iqaudio编解码器
+信息：配置IQaudio编解码器声卡
+负载：dtoverlay = iqaudio-codec
+参数：<无>
+
+
+名称：iqaudio-dac
+信息：配置IQaudio DAC声卡
+负载：dtoverlay = iqaudio-dac，<参数>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = iqaudio-dac，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+
+
+名称：iqaudio-dacplus
+信息：配置IQaudio DAC +声卡
+负载：dtoverlay = iqaudio-dacplus，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = iqaudio-dacplus，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24db_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+        auto_mute_amp如果指定，则在以下情况下取消静音/静音IQaudIO放大器
+                                开始/停止音频播放。
+        unmute_amp（如果已指定），则在以下情况下将IQaudIO放大器取消静音一次：
+                                DAC驱动器模块加载。
+
+
+名称：iqaudio-digi-wm8804-audio
+信息：配置IQAudIO Digi WM8804声卡
+加载：dtoverlay = iqaudio-digi-wm8804-audio，<param> = <val>
+参数：card_name覆盖默认的“ IQAudIODigi”卡名。
+        dai_name覆盖默认的“ IQAudIO Digi” dai名称。
+        dai_stream_name覆盖默认值“ IQAudIO Digi HiFi”，
+                                stream流名称。
+
+
+姓名：jedec-spi-nor
+信息：增加了对符合JEDEC的SPI NOR闪存设备的支持。（注意：
+        “ jedec，spi-nor”内核驱动程序以前称为“ m25p80”。）
+加载：dtoverlay = jedec-spi-nor，<param> = <val>
+参数：flash-spi <n>-<m>在SPI <n>，CS＃<m>上启用闪存设备。
+        flash-fastr-spi <n>-<m>使闪存设备具有快速读取功能
+                                在SPI <n>上，CS＃<m>上。
+
+
+名称：justboom-dac
+信息：配置JustBoom DAC HAT，Amp HAT，DAC零和Amp零音频
+        牌
+负载：dtoverlay = justboom-dac，<param> = <val>
+参数：24db_digital_gain允许通过PCM512x编解码器施加增益
+                                数字音量控制。启用
+                                “ dtoverlay = justboom-dac，24db_digital_gain”
+                                （默认行为是数字
+                                音量控制限制为最大
+                                0分贝 即。它可以衰减但不能提供
+                                获得。对于大多数用户而言，这是理想的
+                                因为它将防止削波。通过附加
+                                24dB_digital_gain参数，数字
+                                音量控制将允许高达24dB的
+                                获得。如果启用此参数，则为
+                                用户的责任，以确保
+                                数字音量控制设置为一个值
+                                不会导致削波/失真！）
+
+
+名称：justboom-digi
+信息：配置JustBoom Digi HAT和Digi Zero音频卡
+负荷：dtoverlay = justboom-digi
+参数：<无>
+
+
+名称：lirc-rpi
+信息：此覆盖图已被弃用并删除-参见gpio-ir
+负载：<不推荐使用>
+
+
+名称：ltc294x
+信息：增加了对ltc294x系列电池电量表的支持
+负载：dtoverlay = ltc294x，<param> = <val>
+参数：ltc2941选择ltc2941设备
+
+        ltc2942选择ltc2942设备
+
+        ltc2943选择ltc2943设备
+
+        ltc2944选择ltc2944设备
+
+        电阻检测电阻值，以毫欧为单位。
+                                电池时可以是32位负值
+                                已连接到错误的一端
+                                电阻。
+
+        prescaler-exponent量规的范围和精度。值是
+                                仅当芯片不同时才编程
+                                从当前设置。
+                                仅对于LTC2941：
+                                -默认值为128
+                                -指数范围是0-7（默认值为7）
+                                有关更多信息，请参见数据表。
+
+
+名称：max98357a
+信息：配置Maxim MAX98357A I2S DAC
+负载：dtoverlay = max98357a，<param> = <val>
+参数：no-sdmode驱动程序不管理DAC的状态
+                                SD_MODE引脚（即芯片始终处于打开状态）。
+        sdmode引脚整数，GPIO引脚连接到SD_MODE输入
+                                DAC（如果省略参数，则为默认GPIO4）。
+
+
+名称：mbed-dac
+信息：配置mbed AudioCODEC（TLV320AIC23B）
+负载：dtoverlay = mbed-dac
+参数：<无>
+
+
+名称：mcp23017
+信息：配置MCP23017 I2C GPIO扩展器
+加载：dtoverlay = mcp23017，<param> = <val>
+参数：gpiopin Gpio引脚连接到INTA输出
+                                MCP23017（预设值：4）
+
+        MCP23017的地址I2C地址（默认：0x20）
+
+        mcp23008改为配置MCP23008。
+        noints禁用中断GPIO线。
+
+
+名称：mcp23s17
+信息：配置MCP23S08 / 17 SPI GPIO扩展器。
+        如果SPI1或SPI2上存在设备，则必须启用这些接口
+        带有spi1-1 / 2 / 3cs和/或spi2-1 / 2 / 3cs叠加层之一。
+        如果为SPI总线上给定CS＃上的设备启用了中断，则
+        该设备必须是该SPI总线/ CS＃上唯一的设备。
+加载：dtoverlay = mcp23s17，<param> = <val>
+参数：s08-spi <n>-<m>-表示4位整数，位图指示MCP23S08
+                                SPI <n>，CS＃<m>上存在的设备
+
+        s17-spi <n>-<m>-存在8位整数，位图指示MCP23S17
+                                SPI <n>，CS＃<m>上存在的设备
+
+        s08-spi <n>-<m> -int-gpio整数，启用单个中断
+                                SPI <n>上的MCP23S08器件CS＃<m>指定
+                                MCP23S08的INT输出到的GPIO引脚
+                                已连接。
+
+        s17-spi <n>-<m> -int-gpio整数，启用对a的镜像中断
+                                SPI <n>，CS＃<m>上的单个MCP23S17器件
+                                指定两个INTA都连接到的GPIO引脚
+                                或MCP23S17的INTB输出已连接。
+
+
+名称：mcp2515-can0
+信息：在spi0.0上配置MCP2515 CAN控制器
+加载：dtoverlay = mcp2515-can0，<param> = <val>
+参数：振荡器CAN控制器的时钟频率（Hz）
+
+        spimaxfrequency最大SPI频率（Hz）
+
+        中断GPIO用于中断信号
+
+
+名称：mcp2515-can1
+信息：在spi0.1上配置MCP2515 CAN控制器
+加载：dtoverlay = mcp2515-can1，<param> = <val>
+参数：振荡器CAN控制器的时钟频率（Hz）
+
+        spimaxfrequency最大SPI频率（Hz）
+
+        中断GPIO用于中断信号
+
+
+名称：mcp3008
+信息：配置MCP3008 A / D转换器
+        对于spi1或spi2上的设备，应启用接口
+        带有spi1-1 / 2 / 3cs和/或spi2-1 / 2 / 3cs叠加层之一。
+加载：dtoverlay = mcp3008，<param> [= <val>]
+参数：spi <n>-<m>-表示布尔值，将设备配置为spi <n>，cs <m>
+        spi <n>-<m> -speed整数，设置此设备的spi总线速度
+
+
+名称：mcp3202
+信息：配置MCP3202 A / D转换器
+        对于spi1或spi2上的设备，应启用接口
+        带有spi1-1 / 2 / 3cs和/或spi2-1 / 2 / 3cs叠加层之一。
+加载：dtoverlay = mcp3202，<param> [= <val>]
+参数：spi <n>-<m>-表示布尔值，将设备配置为spi <n>，cs <m>
+        spi <n>-<m> -speed整数，设置此设备的spi总线速度
+
+
+名称：mcp342x
+信息：用于通过I2C激活Microchip MCP3421-3428 ADC的覆盖
+加载：dtoverlay = mcp342x，<param> = <val>
+参数：设备的addr I2C总线地址，用于具有
+                                可配置的地址，例如通过
+                                硬件链接（默认= 0x68）
+        mcp3421该设备是MCP3421
+        mcp3422该设备是MCP3422
+        mcp3423该设备是MCP3423
+        mcp3424该设备是MCP3424
+        mcp3425该设备是MCP3425
+        mcp3426该设备是MCP3426
+        mcp3427该设备是MCP3427
+        mcp3428该设备是MCP3428
+
+
+名称：媒体中心
+信息：媒体中心HAT-Pi Supply的2.83“触摸屏+其他功能
+负载：dtoverlay = media-center，<param> = <val>
+参数：速度显示SPI总线速度
+        旋转显示旋转{0,90,180,270}
+        fps帧更新之间的延迟
+        xohms触摸屏灵敏度（X板电阻）
+        swapxy交换x和y轴
+        背光更改背光GPIO引脚{例如12，18}
+        gpio_out_pin GPIO用于输出（默认为“ 17”）
+        gpio_in_pin输入的GPIO（默认为“ 18”）
+        gpio_in_pull向上/向下/关闭输入引脚
+                                （默认为“向下”）
+        覆盖红外接收自动检测逻辑：
+                                 “ 0” =强制高电平有效
+                                 “ 1” =强制低电平有效
+                                 “ -1” =使用自动检测
+                                （默认为“ -1”）
+        softcarrier打开或关闭软件载体
+                                （默认为“开”）
+        反转“ on” =反转输出引脚（默认为“ off”）
+        debug“ on” =启用其他调试消息
+                                （默认为“关闭”）
+
+
+名称：midi-uart0
+信息：配置UART0（ttyAMA0），以便实际上获得所请求的38.4kbaud
+        31.25kbaud，MIDI所需的频率
+负载：dtoverlay = midi-uart0
+参数：<无>
+
+
+名称：midi-uart1
+信息：配置UART1（ttyS0），以便实际上获得所请求的38.4kbaud
+        31.25kbaud，MIDI所需的频率
+负荷：dtoverlay = midi-uart1
+参数：<无>
+
+
+名称：miniuart-bt
+信息：在Pi 3B，3B +，3A +，4B和Zero W上切换板载蓝牙功能
+        使用mini-UART（ttyS0）并通过GPIO 14＆恢复UART0 / ttyAMA0
+        15.请注意，这可能会降低最大可用波特率。
+        注意：还需要编辑/lib/systemd/system/hciuart.service
+        并使用ttyS0替换ttyAMA0，除非使用Raspbian或其他
+        使用创建/ dev / serial0和/ dev / serial1的udev规则进行分发，
+        在这种情况下，请改用/ dev / serial1，因为它将始终是
+        正确。此外，还必须将core_freq和core_freq_min设置为
+        config.txt中的相同值或miniuart将不起作用。
+负载：dtoverlay = miniuart-bt
+参数：<无>
+
+
+名称：mmc
+信息：选择bcm2835-mmc SD / MMC驱动程序，可选带超频功能
+负载：dtoverlay = mmc，<param> = <val>
+参数：overclock_50 MMC框架时要使用的时钟（以MHz为单位）
+                                请求50MHz
+
+
+名称：MPU6050
+信息：用于I2C连接的MPU6050 IMU的覆盖
+加载：dtoverlay = mpu6050，<param> = <val>
+参数：用于中断的中断GPIO引脚（默认为4）
+
+
+名称：mz61581
+信息：Tontec的MZ61581显示器
+负载：dtoverlay = mz61581，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        txbuflen发送缓冲区长度（默认值32768）
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+
+名称：ov5647
+信息：Omnivision OV5647摄像机模块。
+        使用Unicam 1，这是大多数Pi上的标准相机连接器
+        变体。
+负载：dtoverlay = ov5647，<param> = <val>
+参数：i2c_pins_0_1 I2C使用引脚0-1，而不是44＆45。
+                                在计算模块上很有用。
+
+        i2c_pins_28_29将引脚28＆29用于I2C，而不是44＆45。
+                                对于Pi B +，2、0和0W，这是必需的。
+
+
+名称：乳头
+信息：Pi Supply的PaPiRus ePaper屏幕（HAT和pHAT）
+负载：dtoverlay = papirus，<param> = <val>
+参数：面板显示面板（必填）：
+                                1.44“：e1144cs021
+                                2.0英寸：e2200cs021
+                                2.7英寸：e2271cs021
+
+        速度显示SPI总线速度
+
+
+[pcf2127-rtc覆盖已被删除。请参阅i2c-rtc。]
+
+
+[pcf8523-rtc覆盖已被删除。请参阅i2c-rtc。]
+
+
+[pcf8563-rtc覆盖已被删除。请参阅i2c-rtc。]
+
+
+名称：pi3-act-led
+信息：此叠加层已重命名为act-led，保留pi3-act-led作为别名
+        向后兼容。
+负载：<不推荐使用>
+
+
+名称：pi3-disable-bt
+信息：此叠加层已重命名为disable-bt，将pi3-disable-bt保留为
+        向下兼容的别名。
+负载：<不推荐使用>
+
+
+名称：pi3-disable-wifi
+信息：此叠加层已重命名为disable-wifi，将pi3-disable-wifi保留为
+        向后兼容性的别名。
+负载：<不推荐使用>
+
+
+名称：pi3-miniuart-bt
+信息：此叠加层已重命名为miniuart-bt，将pi3-miniuart-bt保留为
+        向后兼容性的别名。
+负载：<不推荐使用>
+
+
+姓名：pibell
+信息：配置pibell声卡。
+负载：dtoverlay = pibell，<param> = <val>
+参数：alsaname设置在ALSA中显示的名称（默认
+                                “ PiBell”）
+
+
+名称：小猪
+信息：通过pimoroni.com配置PiGlow
+负载：dtoverlay = piglow
+参数：<无>
+
+
+名称：piscreen
+信息：OzzMaker.com的PiScreen显示屏
+加载：dtoverlay = piscreen，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+
+名称：piscreen2r
+信息：OzzMaker.com的带电阻TP显示的PiScreen 2
+加载：dtoverlay = piscreen2r，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        xohms触摸屏灵敏度（X板电阻）
+
+
+名称
+信息：配置Blokas Labs pisound卡
+负载：dtoverlay = pisound
+参数：<无>
+
+
+名称：pitft22
+信息：Adafruit PiTFT 2.2英寸屏幕
+负载：dtoverlay = pitft22，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+
+名称：pitft28-capacitive
+信息：Adafruit PiTFT 2.8“电容式触摸屏
+负载：dtoverlay = pitft28-capacitive，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        touch-sizex触摸屏尺寸x（默认为240）
+
+        touch-sizey触摸屏尺寸y（默认为320）
+
+        touch-invx触摸屏反向x轴
+
+        触摸式触摸屏y轴倒置
+
+        touch-swapxy触摸屏交换xy轴
+
+
+名称：pitft28-电阻
+信息：Adafruit PiTFT 2.8“电阻式触摸屏
+负载：dtoverlay = pitft28-电阻，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+
+名称：pitft35电阻式
+信息：Adafruit PiTFT 3.5英寸电阻式触摸屏
+负载：dtoverlay = pitft35电阻，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+
+名称：pps-gpio
+信息：配置pps-gpio（通过GPIO的每秒脉冲时间信号）。
+负载：dtoverlay = pps-gpio，<param> = <val>
+参数：gpiopin输入GPIO（默认为“ 18”）
+        assert_falling_edge如果存在，则断言由下降表示
+                                边缘，而不是上升边缘（默认
+                                关闭）
+        capture_clear在后沿生成清除事件
+                                （默认关闭）
+
+
+姓名：pwm
+信息：配置单个PWM通道
+        合法引脚，每个通道的功能组合：
+          PWM0：12,4（Alt0）18,2（Alt5）40,4（Alt0）52,5（Alt1）
+          PWM1：13,4（Alt0）19,2（Alt5）41,4（Alt0）45,4（Alt0）53,5（Alt1）
+        注意：
+          1）引脚18是所有平台上唯一可用的引脚，并且
+             它是I2S音频接口使用的接口。
+             在A +，B +或Pi2上，引脚12和13可能是更好的选择。
+          2）板载模拟音频输出使用两个PWM通道。
+          3）因此请小心混合音频和PWM。
+          4）当前必须已启用并配置时钟
+             通过其他方式。
+负载：dtoverlay = pwm，<param> = <val>
+参数：引脚输出引脚（默认为18）-参见表
+        func Pin功能（默认2 = Alt5）-参见上文
+        时钟PWM时钟频率（信息性）
+
+
+名称：pwm-2chan
+信息：配置两个PWM通道
+        合法引脚，每个通道的功能组合：
+          PWM0：12,4（Alt0）18,2（Alt5）40,4（Alt0）52,5（Alt1）
+          PWM1：13,4（Alt0）19,2（Alt5）41,4（Alt0）45,4（Alt0）53,5（Alt1）
+        注意：
+          1）引脚18是所有平台上唯一可用的引脚，并且
+             它是I2S音频接口使用的接口。
+             在A +，B +或Pi2上，引脚12和13可能是更好的选择。
+          2）板载模拟音频输出使用两个PWM通道。
+          3）因此请小心混合音频和PWM。
+          4）当前必须已启用并配置时钟
+             通过其他方式。
+负载：dtoverlay = pwm-2chan，<param> = <val>
+参数：引脚输出引脚（默认为18）-参见表
+        pin2其他通道的输出引脚（默认为19）
+        func Pin功能（默认2 = Alt5）-参见上文
+        func2引脚2的功能（默认2 = Alt5）
+        时钟PWM时钟频率（信息性）
+
+
+名称：pwm-ir-tx
+信息：将GPIO引脚用作pwm辅助的红外发射器输出。
+        这是“ gpio-ir-tx”的替代方法。pwm-ir-tx可以使用
+        相比PWM0可以减少传输期间的CPU负载
+        使用位撞击的gpio-ir-tx。
+        合法的针脚，功能组合为：
+          12,4（Alt0）18,2（Alt5）40,4（Alt0）52,5（Alt1）
+负载：dtoverlay = pwm-ir-tx，<param> = <val>
+参数：gpio_pin输出GPIO（默认18）
+
+        func引脚功能（默认2 = Alt5）
+
+
+名称：qca7000
+信息：I2SE的PLC Stamp micro评估板
+负载：dtoverlay = qca7000，<param> = <val>
+参数：int_pin中断信号的GPIO引脚（默认为23）
+
+        速度SPI总线速度（默认12 MHz）
+
+
+名称：旋转编码器
+信息：GPIO连接的旋转编码器的覆盖。
+负载：dtoverlay =旋转编码器，<param> = <val>
+参数：pin_a GPIO连接到旋转编码器通道A
+                                （默认为4）。
+        pin_b GPIO连接到旋转编码器通道B
+                                （默认为17）。
+        relative_axis注册相对轴，而不是
+                                绝对一个。相对轴只会
+                                在输入设备上生成+ 1 / -1事件，
+                                因此，无需通过任何步骤。
+        linux_axis输入子系统轴映射到此
+                                旋转编码器。默认为0（ABS_X / REL_X）
+        翻转当旋转值自动翻转
+                                变得大于指定的步长或
+                                小于0。仅用于绝对轴。
+        每个周期的步数每个周期的步数（稳定状态）。
+                                这些值具有以下含义：
+                                1：全周期模式（默认）
+                                2：半周期模式
+                                4：四分之一周期模式
+        步骤完整周转的步骤数
+                                编码器。仅与绝对轴有关。
+                                默认值为24，这是
+                                这样的设备。
+        唤醒布尔值，旋转编码器可以唤醒
+                                系统。
+        encoding String，用于对步骤进行编码的方法。
+                                支持的是“灰色”（默认等）
+                                常见）和“二进制”。
+
+
+名称：rpi-backlight
+信息：Raspberry Pi官方显示背光驱动程序
+负载：dtoverlay = rpi-backlight
+参数：<无>
+
+
+名称：rpi-cirrus-wm5102
+信息：配置Cirrus Logic声卡
+负载：dtoverlay = rpi-cirrus-wm5102
+参数：<无>
+
+
+名称：rpi-dac
+信息：配置RPi DAC音频卡
+负载：dtoverlay = rpi-dac
+参数：<无>
+
+
+名称：rpi-display
+信息：RPi-Display-Watterott的2.8“触摸屏
+负载：dtoverlay = rpi-display，<param> = <val>
+参数：速度显示SPI总线速度
+        旋转显示旋转{0,90,180,270}
+        fps帧更新之间的延迟
+        debug调试输出级别{0-7}
+        xohms触摸屏灵敏度（X板电阻）
+        swapxy交换x和y轴
+        背光更改背光GPIO引脚{例如12，18}
+
+
+名称：rpi-ft5406
+信息：官方Raspberry Pi显示屏触摸屏
+负载：dtoverlay = rpi-ft5406，<param> = <val>
+参数：touchscreen-size-x Touchscreen X分辨率（默认为800）
+        touchscreen-size-y触摸屏Y分辨率（默认为600）；
+        touchscreen-inverted-x反转触摸屏X坐标（默认为0）；
+        touchscreen-inverted-y反转触摸屏的Y坐标（默认为0）；
+        touchscreen-swapped-xy交换X和Y坐标（默认为0）；
+
+
+名称：rpi-poe
+信息：Raspberry Pi PoE HAT风扇
+负载：dtoverlay = rpi-poe，<param> [= <val>]
+参数：poe_fan_temp0风扇所在的温度（单位：毫厘斯卡）
+                                开启（预设为50000）
+        poe_fan_temp0_hyst温度变化量（以毫厘斯卡为单位）
+                                风扇关闭（默认值为5000）
+        poe_fan_temp1风扇的温度（单位：毫厘斯卡）
+                                加速（默认55000）
+        poe_fan_temp1_hyst温度变化量（以毫升为单位）
+                                风扇减速（默认值为5000）
+
+
+名称：rpi-proto
+信息：配置RPi Proto声卡
+负载：dtoverlay = rpi-proto
+参数：<无>
+
+
+名称：rpi-sense
+信息：Raspberry Pi Sense HAT
+负载：dtoverlay = rpi-sense
+参数：<无>
+
+
+名称：rpi-tv
+信息：Raspberry Pi TV HAT
+负载：dtoverlay = rpi-tv
+参数：<无>
+
+
+名称：rra-digidac1-wm8741-audio
+信息：配置Red Rocks Audio DigiDAC1声卡
+负载：dtoverlay = rra-digidac1-wm8741-audio
+参数：<无>
+
+
+名称：sc16is750-i2c
+信息：具有I2C接口的NXP SC16IS750 UART的覆盖
+        以0x48（或“ addr”参数值）启用I2C1上的芯片。至
+        选择其他地址，请参考参考手册中的表10。
+负载：dtoverlay = sc16is750-i2c，<param> = <val>
+参数：用于IRQ的int_pin GPIO（默认24）
+        地址（预设0x48）
+        xtal板载晶振频率（默认14745600）
+
+
+名称：sc16is752-i2c
+信息：具有I2C接口的NXP SC16IS752双UART的覆盖
+        以0x48（或“ addr”参数值）启用I2C1上的芯片。至
+        选择其他地址，请参考参考手册中的表10。
+负载：dtoverlay = sc16is752-i2c，<param> = <val>
+参数：用于IRQ的int_pin GPIO（默认24）
+        地址（预设0x48）
+        xtal板载晶振频率（默认14745600）
+
+
+名称：sc16is752-spi1
+信息：具有SPI接口的NXP SC16IS752双UART的覆盖
+        使能SPI1上的芯片。
+        注意：spi1仅可在带有40pin标头的设备上访问，例如：
+              A +，B +，零和PI2 B; 以及计算模块
+
+加载：dtoverlay = sc16is752-spi1，<param> = <val>
+参数：用于IRQ的int_pin GPIO（默认24）
+
+
+名称：sdhost
+信息：选择bcm2835-sdhost SD / MMC驱动程序，可以选择超频。
+        注意：此覆盖层设计用于mmc驱动程序为
+        默认设置，因此它会禁用其他（mmc）接口-这会杀死
+        Pi3上的WiFi。如果这不是您想要的，请使用sdtweak
+        基本DTB的叠加层或新的sd_ * dtparams。
+加载：dtoverlay = sdhost，<param> = <val>
+参数：overclock_50 MMC框架时要使用的时钟（以MHz为单位）
+                                请求50MHz
+
+        force_pio禁用DMA支持（默认关闭）
+
+        pio_limit使用DMA的块数
+                                （默认为1）
+
+        debug启用调试输出（默认关闭）
+
+
+名称：sdio
+信息：选择bcm2835-sdhost SD / MMC驱动程序，可选带超频功能，
+        并通过GPIO 22-27启用SDIO。在1位模式下使用的示例是
+        “ dtoverlay = sdio，bus_width = 1，gpios_22_25”
+负载：dtoverlay = sdio，<param> = <val>
+参数：sdio_overclock MMC时使用的SDIO时钟（以MHz为单位）
+                                框架要求50MHz
+
+        poll_once每秒禁用SDIO设备轮询
+                                （默认启用：在引导时轮询一次）
+
+        bus_width设置SDIO主机总线宽度（默认4位）
+
+        gpios_22_25为1位模式选择GPIO 22-25。必须使用
+                                其中bus_width = 1。这取代了sdio-1bit
+                                叠加层，现已弃用。
+
+        gpios_34_37为1位模式选择GPIO 34-37。必须使用
+                                其中bus_width = 1。
+
+        gpios_34_39为4位模式选择GPIO 34-39。必须使用
+                                bus_width = 4（默认值）。
+
+
+名称：sdio-1bit
+信息：现在不建议使用此叠加层。采用
+        改为使用“ dtoverlay = sdio，bus_width = 1，gpios_22_25”。
+负载：<不推荐使用>
+
+
+名称：sdtweak
+信息：调整bcm2835-sdhost SD / MMC驱动程序
+        注意现在可以通过sd_ * dtparams使用此功能。
+        基本DTB。
+加载：dtoverlay = sdtweak，<param> = <val>
+参数：overclock_50 MMC框架时要使用的时钟（以MHz为单位）
+                                请求50MHz
+
+        force_pio禁用DMA支持（默认关闭）
+
+        pio_limit使用DMA的块数
+                                （默认为1）
+
+        debug启用调试输出（默认关闭）
+
+        poll_once引导后查找一次卡。有用
+                                用于网络启动方案，以避免
+                                连续轮询的开销。NB使用
+                                此选项将系统限制为使用
+                                每次引导使用一张卡（或完全不使用）。
+                                （默认关闭）
+
+        enable设置为off以完全禁用接口
+                                （默认开启）
+
+
+名称：smi
+信息：启用辅助内存接口外围设备。使用GPIO 2-25！
+负载：dtoverlay = smi
+参数：<无>
+
+
+名称：smi-dev
+信息：启用SMI驱动程序的用户空间界面
+负载：dtoverlay = smi-dev
+参数：<无>
+
+
+姓名：smi-nand
+信息：允许通过SMI接口访问NAND闪存
+负载：dtoverlay = smi-nand
+参数：<无>
+
+
+名称：spi-gpio35-39
+信息：将SPI功能块移至GPIO 35至39
+负载：dtoverlay = spi-gpio35-39
+参数：<无>
+
+
+名称：spi-gpio40-45
+信息：将SPI功能块移至GPIO 40至45
+负载：dtoverlay = spi-gpio40-45
+参数：<无>
+
+
+名称：spi-rtc
+信息：增加了对许多SPI实时时钟设备的支持
+加载：dtoverlay = spi-rtc，<param> = <val>
+参数：pcf2123选择PCF2123设备
+
+
+名称：spi0-cs
+信息：允许更改SPI0的（软件）CS引脚
+加载：dtoverlay = spi0-cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认8）
+        cs1_pin CS1的GPIO引脚（默认7）
+
+
+名称：spi0-hw-cs
+信息：为SPI0重新启用硬件CS / CE（片选）
+负载：dtoverlay = spi0-hw-cs
+参数：<无>
+
+
+名称：spi1-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi1
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi1仅可在带有40pin标头的设备上访问，例如：
+              A +，B +，零和PI2 B; 以及计算模块
+负载：dtoverlay = spi1-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认值为18-BCM SPI1_CE0）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.0（默认
+                                是“确定”或启用）。
+
+
+名称：spi1-2cs
+信息：通过两条片选（CS）线和关联的spidev启用spi1
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi1仅可在带有40pin标头的设备上访问，例如：
+              A +，B +，零和PI2 B; 以及计算模块
+负载：dtoverlay = spi1-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认值为18-BCM SPI1_CE0）。
+        cs1_pin CS1的GPIO引脚（默认为17-BCM SPI1_CE1）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.0（默认
+                                是“确定”或启用）。
+        cs1_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.1（默认
+                                是“确定”或启用）。
+
+
+名称：spi1-3cs
+信息：通过三个芯片选择（CS）线和关联的spidev启用spi1
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi1仅可在带有40pin标头的设备上访问，例如：
+              A +，B +，零和PI2 B; 以及计算模块
+负载：dtoverlay = spi1-3cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认值为18-BCM SPI1_CE0）。
+        cs1_pin CS1的GPIO引脚（默认为17-BCM SPI1_CE1）。
+        cs2_pin CS2的GPIO引脚（默认16-BCM SPI1_CE2）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.0（默认
+                                是“确定”或启用）。
+        cs1_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.1（默认
+                                是“确定”或启用）。
+        cs2_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev1.2（默认
+                                是“确定”或启用）。
+
+
+名称：spi2-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi2
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi2仅可通过计算模块访问。
+负载：dtoverlay = spi2-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认43-BCM SPI2_CE0）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.0（默认
+                                是“确定”或启用）。
+
+
+名称：spi2-2cs
+信息：通过两条芯片选择（CS）线和关联的spidev启用spi2
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi2仅可通过计算模块访问。
+负载：dtoverlay = spi2-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认43-BCM SPI2_CE0）。
+        cs1_pin CS1的GPIO引脚（默认值为44-BCM SPI2_CE1）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.0（默认
+                                是“确定”或启用）。
+        cs1_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.1（默认
+                                是“确定”或启用）。
+
+
+名称：spi2-3cs
+信息：通过三个芯片选择（CS）线和关联的spidev启用spi2
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+        注意：spi2仅可通过计算模块访问。
+负载：dtoverlay = spi2-3cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认43-BCM SPI2_CE0）。
+        cs1_pin CS1的GPIO引脚（默认值为44-BCM SPI2_CE1）。
+        cs2_pin CS2的GPIO引脚（默认值为45-BCM SPI2_CE2）。
+        cs0_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.0（默认
+                                是“确定”或启用）。
+        cs1_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.1（默认
+                                是“确定”或启用）。
+        cs2_spidev设置为“ disabled”以停止创建
+                                用户空间设备节点/dev/spidev2.2（默认
+                                是“确定”或启用）。
+
+
+名称：spi3-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi3
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi3-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认0-BCM SPI3_CE0）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev3.0（默认
+                                是“开启”或启用）。
+
+
+名称：spi3-2cs
+信息：通过两条芯片选择（CS）线和关联的spidev启用spi3
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi3-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认0-BCM SPI3_CE0）。
+        cs1_pin CS1的GPIO引脚（默认为24-BCM SPI3_CE1）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev3.0（默认
+                                是“开启”或启用）。
+        cs1_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev3.1（默认
+                                是“开启”或启用）。
+
+
+名称：spi4-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi4
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi4-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认4-BCM SPI4_CE0）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev4.0（默认
+                                是“开启”或启用）。
+
+
+名称：spi4-2cs
+信息：通过两条片选（CS）线和关联的spidev启用spi4
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi4-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认4-BCM SPI4_CE0）。
+        cs1_pin CS1的GPIO引脚（默认25-BCM SPI4_CE1）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev4.0（默认
+                                是“开启”或启用）。
+        cs1_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev4.1（默认
+                                是“开启”或启用）。
+
+
+名称：spi5-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi5
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi5-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认12-BCM SPI5_CE0）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev5.0（默认
+                                是“开启”或启用）。
+
+
+名称：spi5-2cs
+信息：通过两条芯片选择（CS）线和关联的spidev启用spi5
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi5-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认12-BCM SPI5_CE0）。
+        cs1_pin CS1的GPIO引脚（默认26-BCM SPI5_CE1）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev5.0（默认
+                                是“开启”或启用）。
+        cs1_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev5.1（默认
+                                是“开启”或启用）。
+
+
+名称：spi6-1cs
+信息：通过单芯片选择（CS）线和关联的spidev启用spi6
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi6-1cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认值为18-BCM SPI6_CE0）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev6.0（默认
+                                是“开启”或启用）。
+
+
+名称：spi6-2cs
+信息：通过两条芯片选择（CS）线和关联的spidev启用spi6
+        开发节点。CS线和spidev设备节点的gpio引脚号
+        创建是可配置的。
+负载：dtoverlay = spi6-2cs，<param> = <val>
+参数：cs0_pin CS0的GPIO引脚（默认值为18-BCM SPI6_CE0）。
+        cs1_pin CS1的GPIO引脚（默认值为27-BCM SPI6_CE1）。
+        cs0_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev6.0（默认
+                                是“开启”或启用）。
+        cs1_spidev设置为“ off”以防止创建
+                                用户空间设备节点/dev/spidev6.1（默认
+                                是“开启”或启用）。
+
+
+名称：ssd1306
+信息：用于在I2C OLED显示帧缓冲器上激活SSD1306的覆盖层。
+负载：dtoverlay = ssd1306，<param> = <val>
+参数：地址第一个字符在显示存储器中的位置。
+                                （默认= 0）
+        宽度显示宽度。（预设= 128）
+        height显示高度。（预设= 64）
+        偏移虚拟通道 （默认= 0）
+        正常对测试的显示器没有影响。（默认=否
+                                组）
+        顺序如果每隔一条扫描线丢失，则设置此项。
+                                （默认=未设置）
+        重新映射如果显示为乱码，请设置此项。（默认=否
+                                组）
+        反转如果显示是反转和镜像的，则设置此项。
+                                （默认=未设置）
+
+        例子：
+        128x64显示屏的典型用法：dtoverlay = ssd1306，反转
+
+        128x32显示器的典型用法：dtoverlay = ssd1306，反向，顺序
+
+        i2c_baudrate = 400000将加快显示速度。
+
+        i2c_baudrate = 1000000似乎可以正常工作，即使它不是正式的
+        受硬件支持，并且速度更快。
+
+        有关更多信息，请参见以下器件的数据手册：
+        https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf
+
+
+名称：超级音板
+信息：配置SuperAudioBoard声卡
+负载：dtoverlay = superaudioboard，<param> = <val>
+参数：gpiopin GPIO引脚，用于编解码器重置
+
+
+名称：sx150x
+信息：配置Semtech SX150X I2C GPIO扩展器。
+负载：dtoverlay = sx150x，<param> = <val>
+参数：sx150 <x>-<n>-<m>启用I2C＃<n>上具有从站的SX150X设备
+                                地址<m>。<x>可能是1-9。<n>可以是0或1。
+                                <m>的允许值（用
+                                （十六进制）取决于设备型号。对于SX1501，
+                                SX1502，SX1504和SX1505的<m>可以是20或21。
+                                对于SX1503和SX1506，<m>可能为20。
+                                SX1507和SX1509，<m>可以是3E，3F，70或71。
+                                对于SX1508，<m>可以是20、21、22或23。
+
+        sx150 <x>-<n>-<m> -int-gpio
+                                整数，启用SX150X设备上的中断
+                                从站地址为<m>的I2C＃<n>指定
+                                SX150X的NINT输出所连接的GPIO引脚
+                                连接的。
+
+
+名称：tc358743
+信息：东芝TC358743 HDMI转CSI-2桥接芯片。
+        使用Unicam 1，这是大多数Pi上的标准相机连接器
+        变体。
+负载：dtoverlay = tc358743，<param> = <val>
+参数：4车道使用4车道（仅适用于计算模块
+                                CAM1连接器）。
+
+        link-frequency设置链接频率。仅值297000000
+                                （574Mbit / s）和486000000（972Mbit / s-默认）
+                                驱动程序支持。
+
+        i2c_pins_0_1 I2C使用引脚0-1，而不是44＆45。
+                                在计算模块上很有用。
+
+        i2c_pins_28_29将引脚28＆29用于I2C，而不是44＆45。
+                                对于Pi B +，2、0和0W，这是必需的。
+
+
+名称：tc358743-音频
+信息：与tc358743-fast覆盖层结合使用以路由音频
+        从TC358743通过I2S到Pi。
+        LRCK / WFS到GPIO 19，BCK / SCK到GPIO 18以及DATA / SD到GPIO的布线
+        20
+负载：dtoverlay = tc358743-audio，<param> = <val>
+参数：card-name覆盖默认的“ tc358743”卡名。
+
+
+名称：tinylcd35
+信息：www.tinylcd.com的3.5英寸彩色TFT显示屏
+        选项：触摸，RTC，键盘
+负载：dtoverlay = tinylcd35，<param> = <val>
+参数：速度显示SPI总线速度
+
+        旋转显示旋转{0,90,180,270}
+
+        fps帧更新之间的延迟
+
+        debug调试输出级别{0-7}
+
+        触摸启用触摸面板
+
+        touchgpio触摸控制器IRQ GPIO
+
+        xohms触摸屏：X板的电阻，以欧姆为单位
+
+        rtc-pcf PCF8563实时时钟
+
+        rtc-ds DS1307实时时钟
+
+        键盘启用键盘
+
+        例子：
+            带有触摸屏，PCF8563 RTC和键盘的显示屏：
+                dtoverlay = tinylcd35，touch，rtc-pcf，键盘
+            旧的触摸屏：
+                dtoverlay = tinylcd35，touch，touchgpio = 3
+
+
+名称：tpm-slb9670
+信息：启用对Infineon SLB9670可信平台模块附件的支持
+        板，可以用作安全密钥存储和存储，
+        由Infineon提供“ Iridium SLB9670”，由pi3g提供“ LetsTrust TPM”。
+负载：dtoverlay = tpm-slb9670
+参数：<无>
+
+
+名称：uart0
+信息：更改uart0的引脚使用情况
+加载：dtoverlay = uart0，<param> = <val>
+参数：txd0_pin TXD0的GPIO引脚（14、32或36-默认14）
+
+        rxd0_pin RXD0的GPIO引脚（15、33或37-默认15）
+
+        pin_func备用引脚功能-14（15）为4（Alt0），
+                                对于32和33为7（Alt3），对于36和37为6（Alt2）
+
+
+名称：uart1
+信息：更改uart1的引脚使用情况
+加载：dtoverlay = uart1，<param> = <val>
+参数：txd1_pin TXD1的GPIO引脚（14、32或40-默认14）
+
+        rxd1_pin RXD1的GPIO引脚（15、33或41-默认值为15）
+
+
+名称：uart2
+信息：在GPIO 0-3上启用uart 2
+加载：dtoverlay = uart2，<param>
+参数：ctsrts在GPIO 2-3上启用CTS / RTS（默认关闭）
+
+
+名称：uart3
+信息：在GPIO 4-7上启用uart 3
+加载：dtoverlay = uart3，<param>
+参数：ctsrts在GPIO 6-7上启用CTS / RTS（默认关闭）
+
+
+名称：uart4
+信息：在GPIO 8-11上启用uart 4
+加载：dtoverlay = uart4，<param>
+参数：ctsrts在GPIO 10-11上启用CTS / RTS（默认关闭）
+
+
+名称：uart5
+信息：在GPIO 12-15上启用uart 5
+加载：dtoverlay = uart5，<param>
+参数：ctsrts在GPIO 14-15上启用CTS / RTS（默认关闭）
+
+
+姓名：udrc
+信息：配置NW数字广播UDRC帽子
+加载：dtoverlay = udrc，<param> = <val>
+参数：alsaname ALSA音频设备的名称（默认为“ udrc”）
+
+
+名称：上游
+信息：允许将下游.dtb与上游内核一起使用。包括
+        vc4-kms-v3d和dwc2叠加层。
+负载：dtoverlay =上游
+参数：<无>
+
+
+名称：上游辅助中断
+信息：此覆盖层已被弃用并删除，因为它不再
+        必要。
+负载：<不推荐使用>
+
+
+名称：vc4-fkms-v3d
+信息：在Dispmanx顶部启用Eric Anholt的DRM VC4 V3D驱动程序
+        显示堆栈。
+负载：dtoverlay = vc4-fkms-v3d，<参数>
+参数：cma-256 CMA为256MB（需要1GB）
+        cma-192 CMA为192MB（需要1GB）
+        cma-128 CMA为128MB
+        cma-96 CMA是96MB
+        cma-64 CMA为64MB
+
+
+名称：vc4-kms-kippah-7inch
+信息：启用带有7“ Ontat面板的Adafruit DPI Kippah。
+        需要加载vc4-kms-v3d。
+负载：dtoverlay = vc4-kms-kippah-7inch
+参数：<无>
+
+
+名称：vc4-kms-v3d
+信息：启用Eric Anholt的DRM VC4 HDMI / HVS / V3D驱动程序。运行startx或
+        在使用此叠加层时引导至GUI将引起有趣
+        锁定。
+负载：dtoverlay = vc4-kms-v3d，<param>
+参数：cma-256 CMA为256MB（需要1GB）
+        cma-192 CMA为192MB（需要1GB）
+        cma-128 CMA为128MB
+        cma-96 CMA是96MB
+        cma-64 CMA为64MB
+        音频启用或禁用HDMI上的音频（默认为“开”）
+
+
+名称：vga666
+信息：Fen Logic VGA666板的覆盖
+        这使用GPIO 2-21（因此没有I2C），并激活2-3秒的输出
+        内核启动后。
+负载：dtoverlay = vga666
+参数：<无>
+
+
+名称：w1-gpio
+信息：配置w1-gpio Onewire接口模块。
+        如果您*不需要* GPIO来驱动外部上拉电阻，请使用此覆盖。
+负载：dtoverlay = w1-gpio，<param> = <val>
+参数：用于I / O的gpiopin GPIO（默认为“ 4”）
+        上拉现在默认启用（忽略）
+
+
+名称：w1-gpio-pullup
+信息：配置w1-gpio Onewire接口模块。
+        如果*需要* GPIO来驱动外部上拉电路，请使用此覆盖。
+加载：dtoverlay = w1-gpio-pullup，<param> = <val>
+参数：用于I / O的gpiopin GPIO（默认为“ 4”）
+        extpullup GPIO，用于外部上拉（默认为“ 5”）
+        上拉现在默认启用（忽略）
+
+
+姓名：wittypi
+信息：配置wittypi RTC模块。
+加载：dtoverlay = wittypi，<param> = <val>
+参数：led_gpio GPIO用于LED（默认为“ 17”）
+        led_trigger选择LED跟踪的活动（默认
+                                “默认开启”）
+
+
+故障排除
+===============
+
+如果您遇到与DT相关的问题，请启用DT
+通过将诊断输出添加到/boot/config.txt：
+
+    dtdebug = on
+
+然后重启。然后运行：
+
+    sudo vcdbg日志消息
+
+并查找相关消息。
+
+进一步阅读
+===============
+
+这只是为了快速介绍“设备树”主题。
+树莓派。这里有一个更完整的解释：
+
+http://www.raspberrypi.org/documentation/configuration/device-tree.md
